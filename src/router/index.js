@@ -1,14 +1,36 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Home from '../views/Home.vue'
-
+import store from '../store'
+import { AmplifyEventBus, AmplifyPlugin, components } from 'aws-amplify-vue'
+import * as AmplifyModules from 'aws-amplify'
+Vue.use(AmplifyPlugin, AmplifyModules)
 Vue.use(VueRouter)
+let user
 
+function getUser() {
+  return Vue.prototype.$Amplify.Auth.currentAuthenticatedUser()
+    .then((data) => {
+      if (data && data.signInUserSession) {
+        store.commit('setUser', data);
+        return data;
+      }
+    }).catch(() => {
+      store.commit('setUser', null);
+      return null;
+    });
+}
 const routes = [
   {
     path: '/',
     name: 'Home',
-    component: Home
+    component: Home,
+    meta: { requiresAuth: true }
+  }, ,
+  {                  // 追記
+    path: '/auth',   // 追記
+    name: 'auth',    // 追記
+    component: components.Authenticator  // 追記
   },
   {
     path: '/about',
@@ -25,5 +47,40 @@ const router = new VueRouter({
   base: process.env.BASE_URL,
   routes
 })
+
+// ユーザー管理
+getUser().then((user) => {
+  if (user) {
+    router.push({ path: '/' }, () => { }, () => { });
+  }
+});
+
+// ログイン状態管理
+AmplifyEventBus.$on('authState', async (state) => {
+  if (state === 'signedOut') {
+    user = null;
+    store.commit('setUser', null);
+    router.push({ path: '/auth' }, () => { }, () => { });
+  } else if (state === 'signedIn') {
+    user = await getUser();
+    router.push({ path: '/' }, () => { }, () => { });
+  }
+});
+
+router.beforeResolve(async (to, from, next) => {
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    user = await getUser();
+    if (!user) {
+      return next({
+        path: "/auth",
+        query: {
+          redirect: to.fullPath
+        }
+      });
+    }
+    return next();
+  }
+  return next();
+});
 
 export default router
