@@ -20,17 +20,18 @@ function getUser() {
       return null;
     });
 }
+
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home,
     meta: { requiresAuth: true }
-  }, ,
-  {                  // 追記
-    path: '/auth',   // 追記
-    name: 'auth',    // 追記
-    component: components.Authenticator  // 追記
+  },
+  {
+    path: '/auth',
+    name: 'auth',
+    component: components.Authenticator
   },
   {
     path: '/about',
